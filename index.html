@@ -1,0 +1,223 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AlgoLab</title>
+<style>
+:root{--bg:#eef2f7;--gr:rgba(20,50,110,.07);--fg:#12203a;--mut:#5a6a88;--card:#fff;--bd:#c4cfe0;--ac:#1f5fd6;--acf:#fff;--err:#b3261e;--ok:#0e7a4b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1424;--gr:rgba(120,160,255,.08);--fg:#e6ecf8;--mut:#9aa9c8;--card:#151f36;--bd:#2b3a5c;--ac:#6aa2ff;--acf:#0b1220;--err:#ff9b94;--ok:#5fd6a0;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#0d1424;--gr:rgba(120,160,255,.08);--fg:#e6ecf8;--mut:#9aa9c8;--card:#151f36;--bd:#2b3a5c;--ac:#6aa2ff;--acf:#0b1220;--err:#ff9b94;--ok:#5fd6a0;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);background-image:linear-gradient(var(--gr) 1px,transparent 1px),linear-gradient(90deg,var(--gr) 1px,transparent 1px);background-size:22px 22px;color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#app{max-width:760px;margin:0 auto;padding:14px 14px 40px}
+h1{font-size:26px;margin:4px 0 0;letter-spacing:-.5px}
+header p{margin:0 0 12px;color:var(--mut)}
+nav{display:flex;gap:6px;margin-bottom:12px}
+button{font:inherit;cursor:pointer;border:1.5px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;padding:8px 12px}
+button:focus-visible,textarea:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+nav button{flex:1;font-weight:600}
+nav button.on,.pri{background:var(--ac);color:var(--acf);border-color:var(--ac)}
+textarea{width:100%;font:14px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--card);color:var(--fg);border:1.5px solid var(--bd);border-radius:8px;padding:10px;resize:vertical;tab-size:2}
+.bar{display:flex;gap:6px;overflow-x:auto;padding:0 0 8px}
+.bar button{white-space:nowrap;padding:6px 10px;font:600 13px ui-monospace,Menlo,monospace}
+.row{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+label{font-size:13px;color:var(--mut);display:block;margin:8px 0 3px}
+pre{margin:0;white-space:pre-wrap;font:14px/1.5 ui-monospace,Menlo,Consolas,monospace}
+.out{background:var(--card);border:1.5px solid var(--bd);border-radius:8px;padding:10px;min-height:48px}
+.err{color:var(--err);font-weight:600}.ok{color:var(--ok);font-weight:600}
+.vars{color:var(--mut);font-size:13px;margin-top:6px}
+#dg{overflow:auto;background:var(--card);border:1.5px solid var(--bd);border-radius:8px;padding:8px;margin-top:10px}
+.card{background:var(--card);border:1.5px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:10px}
+.card h3{margin:0 0 4px;font-size:16px}.card p{margin:4px 0 8px}
+.tag{font-size:12px;color:var(--mut)}
+#print{display:none}
+@media print{#app{display:none}#print{display:block;--fg:#000;--card:#fff;--bd:#555;--ac:#000;--mut:#333;background:#fff;color:#000;padding:10px}body{background:#fff}}
+</style><script src="jspdf.umd.min.js"></script></head><body>
+<div id="app">
+<header><h1>AlgoLab</h1><p>Escribe pseudocódigo, ejecútalo y mira su diagrama de flujo.</p></header>
+<nav id="tabs"><button data-t="learn">Aprender</button><button data-t="edit" class="on">Editor</button><button data-t="prac">Practicar</button></nav>
+<section id="learn" hidden></section>
+<section id="edit">
+<div class="bar" id="sym"></div>
+<textarea id="code" rows="12" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Código en pseudocódigo"></textarea>
+<label for="inp">Entradas para Leer (una por línea)</label>
+<textarea id="inp" rows="2" spellcheck="false"></textarea>
+<div class="row"><button class="pri" id="run">Ejecutar</button><button id="dgb">Diagrama</button><button id="stp">Paso a paso</button><button id="aib">Tutor IA</button><button id="pdf">Exportar PDF</button></div>
+<div class="out"><pre id="out">La salida aparece aquí.</pre></div><div class="vars" id="vars"></div><div id="stw" class="card" hidden><b id="sti"></b><p id="stl"></p><div class="vars" id="stv"></div><label>Salida hasta ahora</label><div class="out"><pre id="sto"></pre></div><div class="row"><button id="stb">Anterior</button><button class="pri" id="stn">Siguiente</button></div></div><div id="ai" class="card" hidden><b>Tutor IA</b><p id="aip" style="white-space:pre-wrap"></p></div>
+<div id="dgw" hidden><div class="row"><button id="zo" aria-label="Alejar">−</button><button id="zi" aria-label="Acercar">+</button></div><div id="dg"></div></div>
+</section>
+<section id="prac" hidden></section>
+</div>
+<div id="print"></div>
+<script>
+const $=s=>document.querySelector(s),esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* ---------- Intérprete ---------- */
+function tx(e){return e.split(/("[^"]*"|'[^']*')/).map((p,i)=>i%2?p:p.replace(/<>/g,'!==').replace(/(?<![<>!=])=(?!=)/g,'===').replace(/\bY\b/gi,'&&').replace(/\bO\b/gi,'||').replace(/\bNO\b/gi,'!').replace(/\bMOD\b/gi,'%').replace(/\bVerdadero\b/gi,'true').replace(/\bFalso\b/gi,'false').replace(/\^/g,'**')).join('')}
+function parse(src){
+ const L=src.split('\n'),root=[],st=[{b:root}],vars=new Set(),top=()=>st[st.length-1],add=n=>{n.l=cur;top().b.push(n)};let cur=0;
+ const err=(i,m)=>{throw{line:i+1,msg:m}},close=(i,k,nm)=>{if(top().k!==k)err(i,nm+' no tiene su inicio');st.pop()};
+ L.forEach((raw,i)=>{cur=i+1;
+  const s=raw.replace(/\/\/.*$/,'').trim();let m;if(!s)return;
+  if(/^(algoritmo|proceso|subproceso|finalgoritmo|finproceso|finsubproceso|definir|dimension)\b/i.test(s))return;
+  if(m=s.match(/^escribir\s+(.+)$/i))return add({t:'out',x:m[1]});
+  if(m=s.match(/^leer\s+(.+)$/i))return m[1].split(',').forEach(v=>{v=v.trim();vars.add(v);add({t:'in',x:v})});
+  if(m=s.match(/^si\s+(.+?)\s+entonces$/i)){const n={t:'if',c:m[1],a:[],b:[]};add(n);return st.push({b:n.a,n,k:'si'})}
+  if(/^sino$/i.test(s)){const t=top();if(t.k!=='si'||t.e)err(i,'Sino sin su Si');t.e=1;return t.b=t.n.b}
+  if(/^finsi$/i.test(s))return close(i,'si','FinSi');
+  if(m=s.match(/^mientras\s+(.+?)\s+hacer$/i)){const n={t:'while',c:m[1],a:[]};add(n);return st.push({b:n.a,k:'mi'})}
+  if(/^finmientras$/i.test(s))return close(i,'mi','FinMientras');
+  if(m=s.match(/^para\s+(\w+)\s*(?:<-|←)\s*(.+?)\s+hasta\s+(.+?)(?:\s+con\s+paso\s+(.+?))?\s+hacer$/i)){vars.add(m[1]);const n={t:'for',v:m[1],f:m[2],h:m[3],p:m[4]||'1',a:[]};add(n);return st.push({b:n.a,k:'pa'})}
+  if(/^finpara$/i.test(s))return close(i,'pa','FinPara');
+  if(/^repetir$/i.test(s)){const n={t:'rep',a:[]};add(n);return st.push({b:n.a,n,k:'re'})}
+  if(m=s.match(/^hasta\s+que\s+(.+)$/i)){const t=top();if(t.k!=='re')err(i,'Hasta Que no tiene su Repetir');t.n.c=m[1];return st.pop()}
+  if(m=s.match(/^segun\s+(.+?)\s+hacer$/i)){const n={t:'sw',c:m[1],cs:[]};add(n);return st.push({b:[],n,k:'sg'})}
+  if(/^finsegun$/i.test(s))return close(i,'sg','FinSegun');
+  if(top().k==='sg'&&(m=s.match(/^(.+?)\s*:$/))){const c={v:/^de\s+otro\s+modo$/i.test(m[1])?null:m[1],a:[]};top().n.cs.push(c);return top().b=c.a}
+  if(m=s.match(/^(\w+)\s*(?:<-|←|:=)\s*(.+)$/)){vars.add(m[1]);return add({t:'as',v:m[1],x:m[2]})}
+  err(i,'No entiendo esta línea: '+s)});
+ if(st.length>1)throw{line:L.length,msg:'Falta cerrar una estructura (FinSi, FinMientras, FinPara, FinSegun o Hasta Que)'};
+ return{root,vars}}
+let TR=false,VS=[];const pre=n=>TR?`__t(${n.l},{${VS.join(',')}});`:'';
+function gen(ns){return ns.map(n=>pre(n)+(n=>{switch(n.t){
+ case'out':return`__o([${tx(n.x)}]);`;
+ case'in':return`${n.x}=__r();`;
+ case'as':return`${n.v}=${tx(n.x)};`;
+ case'if':return`if(${tx(n.c)}){${gen(n.a)}}else{${gen(n.b)}}`;
+ case'while':return`while(${tx(n.c)}){__g();${gen(n.a)}}`;
+ case'for':{const p=tx(n.p),h=tx(n.h);return`for(${n.v}=${tx(n.f)};(${p})>=0?${n.v}<=${h}:${n.v}>=${h};${n.v}+=${p}){__g();${gen(n.a)}}`}
+ case'rep':return`do{__g();${gen(n.a)}}while(!(${tx(n.c)}));`;
+ case'sw':return`switch(${tx(n.c)}){${n.cs.map(c=>(c.v==null?'default:':c.v.split(',').map(v=>`case ${tx(v)}:`).join(''))+`{${gen(c.a)}}break;`).join('')}}`}})(n)).join('')}
+const fmt=v=>typeof v==='boolean'?(v?'VERDADERO':'FALSO'):typeof v==='number'&&!Number.isInteger(v)?+v.toFixed(6):v;
+function run(src,inputs,tr){
+ const{root,vars}=parse(src),vs=[...vars],q=inputs.split('\n').filter(s=>s.trim()!==''),R={out:'',n:0,steps:[]};TR=!!tr;VS=vs;
+ const __o=a=>{R.out+=a.map(fmt).join('')+'\n'},
+ __r=()=>{if(!q.length)throw{msg:'Falta un dato: escríbelo en Entradas, uno por línea'};const s=q.shift().trim();return s!==''&&!isNaN(s)?Number(s):s},
+ __g=()=>{if(++R.n>100000)throw{msg:'Posible ciclo infinito: se detuvo el programa'}},__t=(l,v)=>{if(R.steps.length<400)R.steps.push({l,v:{...v},o:R.out})};
+ let f;try{f=new Function('__o','__r','__g','__t',`"use strict";${vs.length?'let '+vs.map(v=>v+'=0').join(',')+';':''}${gen(root)}return{${vs.join(',')}}`)}catch(e){throw{msg:'Hay un error en una expresión. Revisa paréntesis y operadores.'}}
+ try{R.vars=f(__o,__r,__g,__t);if(tr)R.steps.push({l:0,v:{...R.vars},o:R.out})}catch(e){throw e&&e.msg?e:{msg:'Error al ejecutar: '+(e&&e.message)}}
+ return R}
+/* ---------- Diagrama de flujo ---------- */
+const G=26,BW=150,BH=36,DW=120,DH=60;
+function norm(ns){const r=[];ns.forEach(n=>{
+ if(n.t==='for'){r.push({t:'as',v:n.v,x:n.f});r.push({t:'while',c:`${n.v} ${/^-/.test(n.p.trim())?'≥':'≤'} ${n.h}`,a:norm(n.a).concat([{t:'as',v:n.v,x:`${n.v} + ${n.p}`}])})}
+ else if(n.t==='sw'){const d=n.cs.find(c=>c.v==null);let e=d?norm(d.a):[];n.cs.filter(c=>c.v!=null).reverse().forEach(c=>{e=[{t:'if',c:`${n.c} = ${c.v}`,a:norm(c.a),b:e}]});r.push(...e)}
+ else if(n.a)r.push({...n,a:norm(n.a),b:n.b?norm(n.b):void 0});else r.push(n)});return r}
+const wid=ns=>Math.max(0,...ns.map(nw));
+function nw(n){if(n.t==='if'){const hw=Math.max(wid(n.a),wid(n.b),100);return 2*Math.max(hw/2+15,DW/2+40)+hw}if(n.t==='while'||n.t==='rep')return Math.max(DW,wid(n.a),BW)+64;return BW+24}
+function diagram(root){
+ const T=norm(root),W=Math.max(wid(T),DW)+40,cx=W/2;let s='';
+ const pl=(p,ar)=>{s+=`<path d="M${p.join('L')}" class="l"${ar?' marker-end="url(#a)"':''}/>`},ln=(a,b,c,d,ar)=>pl([`${a} ${b}`,`${c} ${d}`],ar);
+ const lb=(x,y,t,c)=>{s+=`<text x="${x}" y="${y+4}" text-anchor="middle" class="${c||'t'}">${esc(t.length>22?t.slice(0,21)+'…':t)}</text>`};
+ const gl=(x,y,t)=>{s+=`<rect x="${x-14}" y="${y-8}" width="28" height="16" rx="8" class="p"/><text x="${x}" y="${y+4}" text-anchor="middle" class="s">${t}</text>`};
+ const shape=(k,x,y,t)=>{
+  if(k==='p')s+=`<rect x="${x-BW/2}" y="${y}" width="${BW}" height="${BH}" class="b"/>`;
+  if(k==='io')s+=`<polygon points="${x-BW/2+12},${y} ${x+BW/2+12},${y} ${x+BW/2-12},${y+BH} ${x-BW/2-12},${y+BH}" class="b"/>`;
+  if(k==='o')s+=`<rect x="${x-50}" y="${y}" width="100" height="${BH}" rx="18" class="b"/>`;
+  if(k==='d')s+=`<polygon points="${x},${y} ${x+DW/2},${y+DH/2} ${x},${y+DH} ${x-DW/2},${y+DH/2}" class="b"/>`;
+  lb(x,y+(k==='d'?DH:BH)/2,t)};
+ function seq(ns,x,y){ns.forEach(n=>{ln(x,y,x,y+G,1);const t=y+G;
+  if(n.t==='as'){shape('p',x,t,`${n.v} ← ${n.x}`);y=t+BH}
+  else if(n.t==='out'){shape('io',x,t,'Escribir '+n.x);y=t+BH}
+  else if(n.t==='in'){shape('io',x,t,'Leer '+n.x);y=t+BH}
+  else if(n.t==='if'){const hw=Math.max(wid(n.a),wid(n.b),100),off=Math.max(hw/2+15,DW/2+40),xl=x-off,xr=x+off,m=t+DH/2;
+   shape('d',x,t,n.c+'?');ln(x-DW/2,m,xl,m);ln(x+DW/2,m,xr,m);gl((x-DW/2+xl)/2,m-12,'Sí');gl((x+DW/2+xr)/2,m-12,'No');
+   const e1=seq(n.a,xl,m),e2=seq(n.b,xr,m),yb=Math.max(e1,e2)+G;ln(xl,e1,xl,yb);ln(xr,e2,xr,yb);ln(xl,yb,xr,yb);y=yb}
+  else if(n.t==='while'){const hw=Math.max(DW,wid(n.a))/2+30,m=t+DH/2;
+   shape('d',x,t,n.c+'?');const e=seq(n.a,x,t+DH);gl(x+20,t+DH+13,'Sí');gl(x+DW/2+16,m-12,'No');const yb=e+G*1.5;
+   pl([`${x} ${e}`,`${x} ${e+G/2}`,`${x-hw} ${e+G/2}`,`${x-hw} ${m}`,`${x-DW/2} ${m}`],1);
+   pl([`${x+DW/2} ${m}`,`${x+hw} ${m}`,`${x+hw} ${yb}`,`${x} ${yb}`]);y=yb}
+  else if(n.t==='rep'){const hw=Math.max(DW,wid(n.a))/2+30,e=seq(n.a,x,y),td=e+G;
+   ln(x,e,x,td,1);shape('d',x,td,n.c+'?');const m=td+DH/2;
+   pl([`${x-DW/2} ${m}`,`${x-hw} ${m}`,`${x-hw} ${y+G/2}`,`${x} ${y+G/2}`],1);gl(x-DW/2-16,m-12,'No');gl(x+20,td+DH+13,'Sí');y=td+DH}
+ });return y}
+ shape('o',cx,6,'Inicio');const y=seq(T,cx,6+BH);ln(cx,y,cx,y+G,1);shape('o',cx,y+G,'Fin');
+ const H=y+G+BH+10;
+ return`<svg viewBox="0 0 ${W} ${H}" data-w="${W}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagrama de flujo"><style>.b{fill:var(--card);stroke:var(--fg);stroke-width:1.5}.l{stroke:var(--fg);stroke-width:1.5;fill:none}.t{fill:var(--fg);font:11px system-ui,sans-serif}.s{fill:var(--ac);font:700 11px system-ui,sans-serif}.p{fill:var(--card);stroke:var(--ac);stroke-width:1}.m{fill:var(--fg)}</style><defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="m"/></marker></defs>${s}</svg>`}
+/* ---------- Editor ---------- */
+const DEF=['Algoritmo Ejemplo','  Definir n, suma Como Entero','  Leer n','  suma <- 0','  Para i <- 1 Hasta n Hacer','    suma <- suma + i','  FinPara','  Escribir "La suma de 1 a ", n, " es ", suma','FinAlgoritmo'].join('\n');
+const code=$('#code');let z=1;
+try{code.value=localStorage.getItem('algolab-code')||DEF}catch(e){code.value=DEF}
+$('#inp').value='5';
+code.addEventListener('input',()=>{try{localStorage.setItem('algolab-code',code.value)}catch(e){}});
+const SYM={'←':'←','<>':'<>','<=':'<=','>=':'>=','Y':' Y ','O':' O ','NO':'NO ','MOD':' MOD ',
+ 'Leer':'Leer x\n','Escribir':'Escribir ""','Si':'Si x > 0 Entonces\n  \nSino\n  \nFinSi\n','Segun':'Segun x Hacer\n  1:\n    \n  De Otro Modo:\n    \nFinSegun\n','Para':'Para i <- 1 Hasta 10 Hacer\n  \nFinPara\n','Mientras':'Mientras x < 10 Hacer\n  \nFinMientras\n','Repetir':'Repetir\n  \nHasta Que x > 0\n'};
+$('#sym').innerHTML=Object.keys(SYM).map(k=>`<button data-k="${esc(k)}">${esc(k)}</button>`).join('');
+$('#sym').onclick=e=>{const k=e.target.dataset.k;if(!k)return;const a=code.selectionStart,b=code.selectionEnd;code.setRangeText(SYM[k],a,b,'end');code.focus();code.dispatchEvent(new Event('input'))};
+function show(res,el){const o=$(el||'#out');o.className='';o.textContent=res.out||'(sin salida)';}
+function exec(){const o=$('#out'),v=$('#vars');v.textContent='';
+ try{const r=run(code.value,$('#inp').value);o.className='';o.textContent=r.out||'(sin salida)';v.textContent='Variables: '+Object.entries(r.vars).map(([k,x])=>`${k} = ${fmt(x)}`).join(' · ')}
+ catch(e){o.className='err';o.textContent=(e.line?`Línea ${e.line}: `:'')+e.msg}}
+function draw(){try{const{root}=parse(code.value);$('#dgw').hidden=false;$('#dg').innerHTML=diagram(root);const sv=$('#dg svg');z=Math.min(1,($('#dg').clientWidth-16)/sv.dataset.w);sv.style.width=sv.dataset.w*z+'px'}
+ catch(e){$('#out').className='err';$('#out').textContent=(e.line?`Línea ${e.line}: `:'')+e.msg}}
+const zoom=f=>{const sv=$('#dg svg');if(sv){z=Math.max(.3,Math.min(2.5,z*f));sv.style.width=sv.dataset.w*z+'px'}};
+$('#run').onclick=exec;$('#dgb').onclick=draw;$('#zi').onclick=()=>zoom(1.25);$('#zo').onclick=()=>zoom(.8);
+$('#pdf').onclick=()=>{try{const{root}=parse(code.value);$('#print').innerHTML=`<h2>AlgoLab</h2><pre>${esc(code.value)}</pre><h3>Diagrama de flujo</h3>${diagram(root)}`;window.print()}catch(e){$('#out').className='err';$('#out').textContent=(e.line?`Línea ${e.line}: `:'')+e.msg}};
+/* ---------- Paso a paso y tutor IA ---------- */
+let ST=[],si=0;
+function stepShow(){const s=ST[si],ls=code.value.split('\n');$('#sti').textContent=`Paso ${si+1} de ${ST.length}`;$('#stl').textContent=s.l?`Va a ejecutar la línea ${s.l}: ${(ls[s.l-1]||'').trim()}`:'Programa terminado';$('#stv').textContent=Object.entries(s.v).map(([k,x])=>`${k} = ${fmt(x)}`).join('  ·  ')||'(sin variables)';$('#sto').textContent=s.o||'(sin salida todavía)'}
+$('#stp').onclick=()=>{try{ST=run(code.value,$('#inp').value,1).steps;si=0;$('#stw').hidden=false;stepShow()}catch(e){$('#stw').hidden=true;$('#out').className='err';$('#out').textContent=(e.line?`Línea ${e.line}: `:'')+e.msg}};
+$('#stn').onclick=()=>{if(si<ST.length-1){si++;stepShow()}};$('#stb').onclick=()=>{if(si>0){si--;stepShow()}};
+const AI_URL='';
+const getAI=async()=>{try{if(window.claude)return await window.claude.use('sample')}catch(e){}
+ if(!AI_URL)return null;
+ const call=async(prompt,json)=>{const r=await fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,json})});if(!r.ok)throw{code:'unavailable'};return r.json()};
+ const s=async p=>({text:(await call(p,false)).text});s.json=async p=>JSON.parse((await call(p,true)).text.replace(/```json|```/g,'').trim());return s};
+const aiErr=e=>e&&e.code==='not_granted'?'Permiso denegado para usar la IA.':e&&e.code==='rate_limited'?'Demasiadas consultas seguidas. Espera un momento.':'No se pudo contactar a la IA. Intenta de nuevo.';
+$('#aib').onclick=async()=>{const p=$('#aip');$('#ai').hidden=false;p.textContent='Pensando…';const s=await getAI();if(!s){p.textContent='El tutor IA no está configurado en esta versión.';return}
+ const pr=`Eres un tutor de algoritmos para un estudiante universitario que usa pseudocódigo estilo PSeInt (Algoritmo, Leer, Escribir, ←, Si/Sino/FinSi, Segun, Para, Mientras, Repetir/Hasta Que). Explica en lenguaje simple qué hace el código o por qué falla, y da una pista concreta para mejorarlo. No entregues la solución completa. Máximo 120 palabras, en español.\n\nCódigo:\n${code.value}\n\nEntradas:\n${$('#inp').value}\n\nResultado de ejecutarlo:\n${$('#out').textContent}`;
+ try{const r=await s(pr,{modelTier:'quick',cache:false,onText:({text})=>{p.textContent=text}});p.textContent=r.text}catch(e){p.textContent=aiErr(e)}};
+/* ---------- Aprender ---------- */
+const LES=[
+['Unidad 1 · Variables y tipos','Una variable guarda un dato: entero, real, cadena o booleano. Se le da valor con ←.',['Algoritmo Suma','  Leer a, b','  Escribir "La suma es ", a + b','FinAlgoritmo'],'8\n5'],
+['Unidad 2 · Condicional doble','Si ejecuta un bloque cuando la condición es verdadera; Sino, cuando es falsa. Se dibuja con un rombo.',['Algoritmo Edad','  Leer n','  Si n >= 18 Entonces','    Escribir "Mayor de edad"','  Sino','    Escribir "Menor de edad"','  FinSi','FinAlgoritmo'],'20'],
+['Unidad 2 · Condicional múltiple','Segun compara una variable con varios casos. Si ninguno coincide, entra De Otro Modo.',['Algoritmo Dia','  Leer d','  Segun d Hacer','    1:','      Escribir "Lunes"','    2:','      Escribir "Martes"','    De Otro Modo:','      Escribir "Otro día"','  FinSegun','FinAlgoritmo'],'2'],
+['Unidad 3 · Para','Para repite un número conocido de veces usando un contador, con Paso opcional.',['Algoritmo Cuenta','  Para i <- 1 Hasta 10 Con Paso 3 Hacer','    Escribir i','  FinPara','FinAlgoritmo'],''],
+['Unidad 3 · Mientras','Mientras revisa la condición antes de cada vuelta; puede no ejecutarse nunca.',['Algoritmo Dobles','  n <- 1','  Mientras n <= 100 Hacer','    n <- n * 2','  FinMientras','  Escribir n','FinAlgoritmo'],''],
+['Unidad 3 · Repetir - Hasta Que','Repetir ejecuta el bloque al menos una vez y revisa la condición al final.',['Algoritmo Positivo','  Repetir','    Leer x','  Hasta Que x > 0','  Escribir "Aceptado: ", x','FinAlgoritmo'],'-3\n0\n7']];
+$('#learn').innerHTML=LES.map((l,i)=>`<div class="card"><h3>${esc(l[0])}</h3><p>${esc(l[1])}</p><pre>${esc(l[2].join('\n'))}</pre><div class="row"><button class="pri" data-l="${i}">Probar en el editor</button></div></div>`).join('');
+$('#learn').onclick=e=>{const i=e.target.dataset.l;if(i==null)return;code.value=LES[i][2].join('\n');$('#inp').value=LES[i][3];code.dispatchEvent(new Event('input'));go('edit');exec();draw()};
+/* ---------- Practicar ---------- */
+const PR=[
+['Unidad 1','Suma de dos números','Lee dos números y muestra su suma.',['Usa Leer a, b.','Escribe Escribir a + b.'],[['3\n4','7'],['-2\n10','8']]],
+['Unidad 2','Mayor de dos','Lee dos números y muestra el mayor.',['Compara con Si a > b Entonces.','Muestra a si es mayor; si no, b.'],[['5\n9','9'],['12\n3','12']]],
+['Unidad 2','Par o impar','Lee un entero y muestra PAR o IMPAR.',['Un número es par si n MOD 2 = 0.','Escribe exactamente PAR o IMPAR.'],[['4','PAR'],['7','IMPAR']]],
+['Unidad 3','Suma de 1 a N','Lee N y muestra la suma de los enteros de 1 a N.',['Usa un acumulador que empiece en 0.','Para i <- 1 Hasta n Hacer suma <- suma + i.'],[['5','15'],['10','55']]],
+['Unidad 3','Factorial','Lee N y muestra N! (el factorial de 0 es 1).',['Empieza con f <- 1.','Multiplica f por cada i de 1 a N.'],[['5','120'],['0','1']]]];
+$('#prac').innerHTML=PR.map((p,i)=>`<div class="card" id="p${i}"><div class="tag">${p[0]}</div><h3>${esc(p[1])}</h3><p>${esc(p[2])}</p><textarea rows="5" spellcheck="false" autocapitalize="off">Algoritmo Solucion\n  // escribe tu solución\nFinAlgoritmo</textarea><div class="row"><button class="pri" data-v="${i}">Validar</button><button data-h="${i}">Pista</button></div><div class="res"></div></div>`).join('');
+const hs={};
+$('#prac').onclick=e=>{const v=e.target.dataset.v,h=e.target.dataset.h;
+ if(v!=null){const c=$('#p'+v),src=c.querySelector('textarea').value;let html='';
+  PR[v][4].forEach(([inp,exp],k)=>{try{const o=run(src,inp).out.trim();html+=o===exp?`<div class="ok">Caso ${k+1}: correcto</div>`:`<div class="err">Caso ${k+1}: con entrada ${esc(inp.replace(/\n/g,', '))} esperaba ${esc(exp)} y obtuvo ${esc(o||'nada')}</div>`}catch(x){html+=`<div class="err">Caso ${k+1}: ${x.line?'línea '+x.line+': ':''}${esc(x.msg)}</div>`}});
+  c.querySelector('.res').innerHTML=html}
+ if(h!=null){const c=$('#p'+h),n=hs[h]=Math.min((hs[h]||0)+1,2);c.querySelector('.res').innerHTML='<div class="tag">Pista '+n+' de 2: '+esc(PR[h][3][n-1])+'</div>'}};
+/* ---------- Problemas con IA ---------- */
+$('#prac').insertAdjacentHTML('afterbegin','<div class="row"><button class="pri" id="gen">Generar problema con IA</button></div>');
+$('#gen').onclick=async()=>{const b=$('#gen'),s=await getAI();if(!s){b.textContent='IA no configurada en esta versión';return}
+ const U=['variables y tipos de datos','condicional simple o doble','condicional anidado o múltiple','repetitiva Para','repetitiva Mientras','repetitiva Repetir-Hasta Que'],u=U[Math.floor(Math.random()*U.length)];
+ b.disabled=true;b.textContent='Generando…';
+ try{const o=await s.json(`Crea un problema de práctica de algoritmos para un estudiante universitario, sobre: ${u}. Debe resolverse solo con Leer y Escribir, y cada caso de prueba debe producir UNA sola línea de salida. Responde solo con JSON de esta forma: {"titulo":"","enunciado":"","pistas":["",""],"casos":[{"entrada":"valores separados por salto de línea","salida":"salida exacta"}]} con exactamente 3 casos correctos.`,{modelTier:'default',cache:false});
+  if(!o||!Array.isArray(o.casos)||!o.casos.length||!Array.isArray(o.pistas)||o.pistas.length<2)throw{};
+  PR.push(['IA · '+u,o.titulo,o.enunciado,o.pistas,o.casos.map(c=>[String(c.entrada),String(c.salida).trim()])]);const i=PR.length-1,p=PR[i];
+  $('#prac').insertAdjacentHTML('beforeend',`<div class="card" id="p${i}"><div class="tag">${esc(p[0])}. Casos generados por IA: si un resultado esperado parece incorrecto, ignóralo.</div><h3>${esc(p[1])}</h3><p>${esc(p[2])}</p><textarea rows="5" spellcheck="false" autocapitalize="off">Algoritmo Solucion\n  // escribe tu solución\nFinAlgoritmo</textarea><div class="row"><button class="pri" data-v="${i}">Validar</button><button data-h="${i}">Pista</button></div><div class="res"></div></div>`);
+  $('#p'+i).scrollIntoView({behavior:'smooth'})}catch(e){b.textContent='No se pudo generar. Intenta de nuevo.';b.disabled=false;return}
+ b.disabled=false;b.textContent='Generar otro problema con IA'};
+/* ---------- PDF ---------- */
+async function pdfExport(){
+ let root;try{root=parse(code.value).root}catch(e){$('#out').className='err';$('#out').textContent=(e.line?`Línea ${e.line}: `:'')+e.msg;return}
+ const dl=window.claude?await window.claude.use('downloads').catch(()=>null):null;
+ const P=window.Capacitor&&window.Capacitor.Plugins,nat=!!(P&&P.Filesystem&&P.Share);if((!dl&&!nat)||!window.jspdf){$('#print').innerHTML=`<h2>AlgoLab</h2><pre>${esc(code.value)}</pre><h3>Diagrama de flujo</h3>${diagram(root)}`;window.print();return}
+ const b=$('#pdf');b.disabled=true;b.textContent='Creando PDF…';
+ try{
+  const svg=diagram(root).split('var(--card)').join('#ffffff').split('var(--fg)').join('#000000').split('var(--ac)').join('#1f5fd6'),vb=new DOMParser().parseFromString(svg,'image/svg+xml').documentElement.viewBox.baseVal,W=vb.width,H=vb.height,sc=2;
+  const img=new Image();await new Promise((ok,ko)=>{img.onload=ok;img.onerror=ko;img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg)});
+  const cv=document.createElement('canvas');cv.width=W*sc;cv.height=H*sc;const c=cv.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,cv.width,cv.height);c.drawImage(img,0,0,cv.width,cv.height);
+  const doc=new window.jspdf.jsPDF({unit:'pt',format:'a4'});doc.setFontSize(16);doc.text('AlgoLab',40,50);doc.setFont('courier','normal');doc.setFontSize(9);
+  let y=75;doc.splitTextToSize(code.value.split('←').join('<-'),515).forEach(l=>{if(y>800){doc.addPage();y=50}doc.text(l,40,y);y+=12});
+  const k=Math.min(1.3,515/W),ph=Math.floor(760/k*sc);
+  for(let y0=0;y0<cv.height;y0+=ph){const h=Math.min(ph,cv.height-y0),c2=document.createElement('canvas');c2.width=cv.width;c2.height=h;c2.getContext('2d').drawImage(cv,0,y0,cv.width,h,0,0,cv.width,h);doc.addPage();doc.addImage(c2.toDataURL('image/png'),'PNG',40,40,W*k,h/sc*k)}
+  if(nat){const f=await P.Filesystem.writeFile({path:'algolab.pdf',data:doc.output('datauristring').split(',')[1],directory:'CACHE'});await P.Share.share({title:'AlgoLab',url:f.uri})}else await dl.save({filename:'algolab.pdf',data:doc.output('blob')})
+ }catch(e){if(!e||(e.code!=='declined'&&!/cancel/i.test(e.message||''))){$('#out').className='err';$('#out').textContent='No se pudo crear el PDF. Intenta de nuevo.'}}
+ b.disabled=false;b.textContent='Exportar PDF'}
+$('#pdf').onclick=pdfExport;
+/* ---------- Navegación ---------- */
+function go(t){['learn','edit','prac'].forEach(s=>$('#'+s).hidden=s!==t);document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===t))}
+$('#tabs').onclick=e=>{if(e.target.dataset.t)go(e.target.dataset.t)};
+</script></body></html>
